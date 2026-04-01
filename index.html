@@ -1,226 +1,348 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html>
 <head>
     <meta charset="UTF-8">
-    <title>Advanced MOBA Starter</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MOBA: Hidden Shop</title>
     <style>
-        body { margin: 0; background: #1a1a2e; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; color: #e94560; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        canvas { background: #16213e; border: 2px solid #0f3460; box-shadow: 0 0 20px rgba(0,0,0,0.5); border-radius: 8px; }
-        .ui-panel { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; background: rgba(15, 52, 96, 0.8); padding: 15px 30px; border-radius: 50px; border: 1px solid #e94560; pointer-events: none; }
-        .stat { text-align: center; }
-        .stat-value { font-size: 20px; font-weight: bold; color: #fff; }
-        .stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
+        body { margin: 0; background: #1a1a1a; color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
+        canvas { display: block; background: #2d5a27; }
+        
+        /* Верхний интерфейс */
+        #ui { position: absolute; top: 10px; left: 10px; pointer-events: none; display: flex; flex-direction: column; gap: 10px; }
+        .stats-box { background: rgba(0,0,0,0.6); padding: 10px; border-radius: 10px; border: 1px solid #555; pointer-events: auto; }
+        
+        /* Кнопка магазина */
+        #shopToggle { 
+            pointer-events: auto; background: #444; color: gold; border: 2px solid gold; 
+            padding: 8px 15px; border-radius: 5px; font-weight: bold; cursor: pointer; 
+            text-transform: uppercase; font-size: 12px; transition: 0.2s;
+        }
+        #shopToggle:active { transform: scale(0.9); background: #666; }
+
+        /* Само окно магазина */
+        .shop-container { 
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 180px; background: rgba(0,0,0,0.9); padding: 15px; border-radius: 15px; 
+            border: 2px solid gold; pointer-events: auto; display: none;
+            flex-direction: column; gap: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            z-index: 100;
+        }
+        .shop-title { text-align: center; font-weight: bold; color: gold; font-size: 16px; text-transform: uppercase; }
+        .shop-item { background: #333; color: #ddd; border: 1px solid #777; padding: 10px; border-radius: 8px; cursor: pointer; font-size: 12px; display: flex; justify-content: space-between; }
+        .shop-item.can-afford { border-color: #0f0; color: #fff; background: #224422; }
+        .shop-item.cant-afford { opacity: 0.5; cursor: not-allowed; }
+
+        #ultaBtn { pointer-events: auto; background: gold; border: none; padding: 12px; border-radius: 50%; width: 60px; height: 60px; font-weight: bold; box-shadow: 0 4px 0 #8b6508; }
+
+        /* ЭКРАН ВОЗРОЖДЕНИЯ */
+        #respawnUI { 
+            position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); 
+            text-align: center; display: none; pointer-events: none; z-index: 200;
+        }
+        #respawnUI h1 { color: #ff4444; font-size: 40px; text-shadow: 2px 2px black; margin: 0; }
+        #timer { font-size: 30px; font-weight: bold; color: white; }
     </style>
 </head>
 <body>
 
-<div class="ui-panel">
-    <div class="stat"><div class="stat-value" id="hp">100</div><div class="stat-label">Health</div></div>
-    <div class="stat"><div class="stat-value" id="score">0</div><div class="stat-label">Kills</div></div>
-    <div class="stat"><div class="stat-value" id="ult">Ready</div><div class="stat-label">Ultimate (Space)</div></div>
-</div>
+    <div id="ui">
+        <div class="stats-box">
+            <div style="color: gold; font-weight: bold;">Gold: <span id="gold">0</span></div>
+            <div>HP: <span id="hp">100</span> | LVL: <span id="lvl">1</span></div>
+            <div style="color: #ff4444; font-size: 11px; font-weight: bold; margin-top: 5px;">Tower: <span id="tower-hp-ui">1500</span></div>
+        </div>
+        <button id="shopToggle" onclick="toggleShop(event)">Shop (M)</button>
+        <button id="ultaBtn">ULT</button>
+    </div>
 
-<canvas id="gameCanvas"></canvas>
+    <div id="respawnUI">
+        <h1>YOU DIED</h1>
+        <div id="timer">3</div>
+    </div>
+
+    <div class="shop-container" id="shop">
+        <div class="shop-title">Black Market</div>
+        <div class="shop-item" id="buy-dmg" onclick="buyUpgrade('damage')"><span>+DMG</span> <b id="cost-dmg">150</b></div>
+        <div class="shop-item" id="buy-speed" onclick="buyUpgrade('speed')"><span>+SPD</span> <b id="cost-speed">200</b></div>
+        <div class="shop-item" id="buy-crit" onclick="buyUpgrade('crit')"><span>+Crit %</span> <b id="cost-crit">300</b></div>
+        <div class="shop-item" id="buy-heal" onclick="buyUpgrade('heal')"><span>Full Heal</span> <b>50</b></div>
+        <div style="font-size: 10px; color: #aaa; text-align: center;">Click field to close</div>
+    </div>
+
+    <div id="joystick-container" style="position: absolute; bottom: 50px; left: 50px; width: 100px; height: 100px; background: rgba(255,255,255,0.2); border-radius: 50%; touch-action: none;">
+        <div id="joystick-stick" style="position: absolute; top: 30px; left: 30px; width: 40px; height: 40px; background: white; border-radius: 50%;"></div>
+    </div>
+    <canvas id="game"></canvas>
 
 <script>
-    const canvas = document.getElementById('gameCanvas');
+    const canvas = document.getElementById('game');
     const ctx = canvas.getContext('2d');
-    
-    canvas.width = 1000;
-    canvas.height = 700;
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
 
-    const state = {
-        player: {
-            x: 500, y: 350, radius: 18, color: '#4eccf3',
-            speed: 250, hp: 100, maxHp: 100, score: 0,
-            ultReady: true, ultCooldown: 5000
-        },
-        bullets: [],
-        enemies: [],
-        particles: [],
-        keys: {},
-        lastTime: 0
+    const soundShot = new Audio('shot.mp3');
+    const soundFailure = new Audio('failure.mp3');
+    const soundCrit = new Audio('crit.mp3');
+    [soundShot, soundFailure, soundCrit].forEach(s => s.load());
+
+    let shakeTime = 0;
+    let isGameOver = false;
+    let shopOpen = false;
+    const damageTexts = [];
+
+    const player = {
+        x: canvas.width / 2 - 150, y: canvas.height / 2,
+        hp: 100, maxHp: 100, gold: 0, size: 20, bullets: [],
+        ultaReady: true, lvl: 1, exp: 0, alive: true,
+        damage: 10, moveSpeed: 4, critChance: 0.1
     };
 
-    // Слушатели событий
-    window.addEventListener('keydown', e => state.keys[e.code] = true);
-    window.addEventListener('keyup', e => state.keys[e.code] = false);
-    canvas.addEventListener('mousedown', e => {
-        if(e.button === 0) spawnBullet();
-    });
-    window.addEventListener('keydown', e => {
-        if(e.code === 'Space' && state.player.ultReady) useUltimate();
-    });
+    const tower = { x: canvas.width / 2, y: canvas.height / 2, hp: 1500, maxHp: 1500, size: 60, alive: true };
+    const costs = { damage: 150, speed: 200, crit: 300, heal: 50 };
+    const enemy = { x: 100, y: 100, hp: 50, maxHp: 50, size: 25, alive: true, bullets: [], attackCooldown: 0, damage: 10 };
+    const walls = [{ x: canvas.width/2 - 200, y: canvas.height/2 + 100, w: 100, h: 20 }, { x: canvas.width/2 + 100, y: canvas.height/2 - 150, w: 20, h: 100 }];
 
-    function spawnBullet() {
-        const rect = canvas.getBoundingClientRect();
-        const mouseX = event.clientX - rect.left;
-        const mouseY = event.clientY - rect.top;
-        const angle = Math.atan2(mouseY - state.player.y, mouseX - state.player.x);
-        
-        state.bullets.push({
-            x: state.player.x, y: state.player.y,
-            vx: Math.cos(angle) * 500, vy: Math.sin(angle) * 500,
-            radius: 4, color: '#f8ef42'
-        });
+    function toggleShop(event) {
+        if (event) event.stopPropagation();
+        shopOpen = !shopOpen;
+        document.getElementById('shop').style.display = shopOpen ? 'flex' : 'none';
+        updateShopUI();
     }
 
-    function useUltimate() {
-        state.player.ultReady = false;
-        for(let i=0; i<12; i++) {
-            const angle = (Math.PI * 2 / 12) * i;
-            state.bullets.push({
-                x: state.player.x, y: state.player.y,
-                vx: Math.cos(angle) * 400, vy: Math.sin(angle) * 400,
-                radius: 8, color: '#e94560'
-            });
+    window.addEventListener('mousedown', (e) => {
+        if (shopOpen && !e.target.closest('#shop') && !e.target.closest('#shopToggle')) {
+            toggleShop();
         }
-        setTimeout(() => state.player.ultReady = true, state.player.ultCooldown);
+        
+        if (player.alive && !shopOpen && !isGameOver && !e.target.closest('#ui') && !e.target.closest('#joystick-container')) {
+            const angle = Math.atan2(e.clientY - player.y, e.clientX - player.x);
+            let isCrit = Math.random() < player.critChance;
+            let finalDmg = isCrit ? player.damage * 2 : player.damage;
+            player.bullets.push({ x: player.x, y: player.y, vx: Math.cos(angle)*8, vy: Math.sin(angle)*8, damage: finalDmg, isCrit: isCrit });
+            shakeTime = isCrit ? 7 : 3;
+            if (isCrit) { soundCrit.currentTime = 0; soundCrit.play().catch(e=>{}); }
+            else { soundShot.currentTime = 0; soundShot.play().catch(e=>{}); }
+        }
+    });
+
+    function respawnPlayer() {
+        player.alive = false;
+        player.x = -1000;
+        soundFailure.play().catch(e=>{});
+        const ui = document.getElementById('respawnUI');
+        const timerTxt = document.getElementById('timer');
+        ui.style.display = 'block';
+        let timeLeft = 3;
+        timerTxt.innerText = timeLeft;
+        let countdown = setInterval(() => {
+            timeLeft--;
+            timerTxt.innerText = timeLeft;
+            if (timeLeft <= 0) {
+                clearInterval(countdown);
+                ui.style.display = 'none';
+                player.alive = true;
+                player.hp = player.maxHp;
+                player.x = canvas.width / 2 - 150;
+                player.y = canvas.height / 2;
+            }
+        }, 1000);
     }
 
-    function createExplosion(x, y, color) {
-        for(let i=0; i<10; i++) {
-            state.particles.push({
-                x, y, 
-                vx: (Math.random() - 0.5) * 200, 
-                vy: (Math.random() - 0.5) * 200,
-                life: 1.0, color
-            });
+    function buyUpgrade(type) {
+        if (type === 'damage' && player.gold >= costs.damage) {
+            player.gold -= costs.damage; player.damage += 5; costs.damage = Math.floor(costs.damage * 1.5);
+        } else if (type === 'speed' && player.gold >= costs.speed) {
+            player.gold -= costs.speed; player.moveSpeed += 0.4; costs.speed = Math.floor(costs.speed * 1.6);
+        } else if (type === 'crit' && player.gold >= costs.crit) {
+            player.gold -= costs.crit; player.critChance += 0.05; costs.crit = Math.floor(costs.crit * 2);
+        } else if (type === 'heal' && player.gold >= costs.heal) {
+            player.gold -= costs.heal; player.hp = player.maxHp;
+        }
+        updateShopUI();
+    }
+
+    function updateShopUI() {
+        const costDmgEl = document.getElementById('cost-dmg');
+        if(!costDmgEl) return;
+        costDmgEl.innerText = costs.damage;
+        document.getElementById('cost-speed').innerText = costs.speed;
+        document.getElementById('cost-crit').innerText = costs.crit;
+        const check = (id, cost) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            if (player.gold >= cost) { el.classList.add('can-afford'); el.classList.remove('cant-afford'); }
+            else { el.classList.remove('can-afford'); el.classList.add('cant-afford'); }
+        };
+        check('buy-dmg', costs.damage); check('buy-speed', costs.speed); check('buy-crit', costs.crit); check('buy-heal', 50);
+    }
+
+    const stick = document.getElementById('joystick-stick');
+    const container = document.getElementById('joystick-container');
+    let moveX = 0, moveY = 0;
+    container.addEventListener('touchmove', (e) => {
+        if (isGameOver || shopOpen || !player.alive) return;
+        const touch = e.touches[0];
+        const rect = container.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        let dx = touch.clientX - centerX; let dy = touch.clientY - centerY;
+        const dist = Math.min(Math.hypot(dx, dy), 40);
+        const angle = Math.atan2(dy, dx);
+        moveX = Math.cos(angle) * (dist / 40); moveY = Math.sin(angle) * (dist / 40);
+        stick.style.transform = `translate(${Math.cos(angle) * dist}px, ${Math.sin(angle) * dist}px)`;
+    });
+    container.addEventListener('touchend', () => { moveX = 0; moveY = 0; stick.style.transform = `translate(0, 0)`; });
+
+    const ultaBtn = document.getElementById('ultaBtn');
+    ultaBtn.onclick = () => {
+        if (isGameOver || shopOpen || !player.ultaReady || !player.alive) return;
+        if (enemy.alive && Math.hypot(player.x - enemy.x, player.y - enemy.y) < 150) {
+            enemy.hp -= 50; damageTexts.push({ x: enemy.x, y: enemy.y, text: "ULTRA!", life: 40, color: "gold" });
+            checkEnemyDeath();
+        }
+        player.ultaReady = false; shakeTime = 15; ultaBtn.style.opacity = '0.5';
+        setTimeout(() => { player.ultaReady = true; ultaBtn.style.opacity = '1'; }, 5000);
+    };
+
+    function checkEnemyDeath() {
+        if (enemy.hp <= 0 && enemy.alive) {
+            enemy.alive = false; player.gold += 100; player.exp += 60;
+            if (player.exp >= 100) { player.lvl++; player.exp = 0; player.size += 5; damageTexts.push({ x: player.x, y: player.y - 50, text: "LEVEL UP!", life: 60, color: "#0f0" }); }
+            setTimeout(() => { if(!isGameOver) { enemy.alive = true; enemy.hp = 50 + (player.lvl * 15); enemy.maxHp = enemy.hp; } }, 3000);
         }
     }
 
-    function spawnEnemy() {
-        const edge = Math.floor(Math.random() * 4);
-        let x, y;
-        if(edge === 0) { x = Math.random()*canvas.width; y = -20; }
-        else if(edge === 1) { x = canvas.width+20; y = Math.random()*canvas.height; }
-        else if(edge === 2) { x = Math.random()*canvas.width; y = canvas.height+20; }
-        else { x = -20; y = Math.random()*canvas.height; }
+    const keys = {};
+    window.addEventListener('keydown', e => { 
+        keys[e.code] = true;
+        if (e.code === 'KeyM') toggleShop();
+    });
+    window.addEventListener('keyup', e => keys[e.code] = false);
 
-        state.enemies.push({
-            x, y, radius: 22, color: '#ff4d4d',
-            speed: 80 + Math.random() * 50,
-            hp: 30, maxHp: 30
-        });
-    }
+    function update() {
+        if (isGameOver || shopOpen) return;
 
-    setInterval(spawnEnemy, 1500);
-
-    function update(dt) {
-        const p = state.player;
+        if (shakeTime > 0) shakeTime--;
         
-        // Движение
-        if (state.keys['KeyW']) p.y -= p.speed * dt;
-        if (state.keys['KeyS']) p.y += p.speed * dt;
-        if (state.keys['KeyA']) p.x -= p.speed * dt;
-        if (state.keys['KeyD']) p.x += p.speed * dt;
+        if (player.alive) {
+            let oldX = player.x, oldY = player.y;
+            player.x += moveX * player.moveSpeed; player.y += moveY * player.moveSpeed;
+            if (keys['KeyW']) player.y -= player.moveSpeed; if (keys['KeyS']) player.y += player.moveSpeed;
+            if (keys['KeyA']) player.x -= player.moveSpeed; if (keys['KeyD']) player.x += player.moveSpeed;
 
-        // Пули
-        state.bullets.forEach((b, i) => {
-            b.x += b.vx * dt;
-            b.y += b.vy * dt;
-            if (b.x < 0 || b.x > canvas.width || b.y < 0 || b.y > canvas.height) state.bullets.splice(i, 1);
-        });
+            // ОГРАНИЧЕНИЕ ЭКРАНА ДЛЯ ИГРОКА
+            if (player.x - player.size < 0) player.x = player.size;
+            if (player.x + player.size > canvas.width) player.x = canvas.width - player.size;
+            if (player.y - player.size < 0) player.y = player.size;
+            if (player.y + player.size > canvas.height) player.y = canvas.height - player.size;
 
-        // Частицы
-        state.particles.forEach((part, i) => {
-            part.x += part.vx * dt;
-            part.y += part.vy * dt;
-            part.life -= dt * 2;
-            if(part.life <= 0) state.particles.splice(i, 1);
-        });
+            walls.forEach(w => { if (player.x + player.size > w.x && player.x - player.size < w.x + w.w && player.y + player.size > w.y && player.y - player.size < w.y + w.h) { player.x = oldX; player.y = oldY; } });
+        }
 
-        // Враги
-        state.enemies.forEach((en, ei) => {
-            const angle = Math.atan2(p.y - en.y, p.x - en.x);
-            en.x += Math.cos(angle) * en.speed * dt;
-            en.y += Math.sin(angle) * en.speed * dt;
-
-            // Коллизия с пулями
-            state.bullets.forEach((b, bi) => {
-                if (Math.hypot(b.x - en.x, b.y - en.y) < en.radius) {
-                    en.hp -= 10;
-                    state.bullets.splice(bi, 1);
-                    if (en.hp <= 0) {
-                        createExplosion(en.x, en.y, en.color);
-                        state.enemies.splice(ei, 1);
-                        p.score++;
-                        document.getElementById('score').innerText = p.score;
-                    }
+        player.bullets.forEach((b, index) => {
+            b.x += b.vx; b.y += b.vy;
+            if (enemy.alive && Math.hypot(b.x - enemy.x, b.y - enemy.y) < enemy.size) {
+                enemy.hp -= b.damage; damageTexts.push({ x: enemy.x, y: enemy.y, text: b.isCrit ? "CRIT " + b.damage : b.damage, life: 30, color: b.isCrit ? "red" : "yellow", size: b.isCrit ? 30 : 20 });
+                player.bullets.splice(index, 1); checkEnemyDeath();
+            } else if (tower.alive && Math.hypot(b.x - tower.x, b.y - tower.y) < tower.size) {
+                if (player.lvl >= 5) {
+                    tower.hp -= b.damage; damageTexts.push({ x: tower.x, y: tower.y, text: "-" + b.damage, life: 20, color: "white" });
+                    if (tower.hp <= 0) { tower.alive = false; isGameOver = true; setTimeout(() => { alert("VICTORY!"); location.reload(); }, 100); }
+                } else {
+                    damageTexts.push({ x: tower.x, y: tower.y, text: "LOW LVL", life: 10, color: "gray" });
                 }
-            });
-
-            // Урон игроку
-            if (Math.hypot(en.x - p.x, en.y - p.y) < en.radius + p.radius) {
-                p.hp -= 10 * dt;
-                document.getElementById('hp').innerText = Math.ceil(p.hp);
-                if (p.hp <= 0) location.reload();
+                player.bullets.splice(index, 1);
             }
         });
-    }
 
-    function drawHealthBar(x, y, radius, hp, maxHp) {
-        const width = radius * 2.5;
-        const height = 6;
-        ctx.fillStyle = '#333';
-        ctx.fillRect(x - width/2, y - radius - 15, width, height);
-        ctx.fillStyle = hp > maxHp * 0.3 ? '#2ecc71' : '#e74c3c';
-        ctx.fillRect(x - width/2, y - radius - 15, width * (hp/maxHp), height);
+        // ЛОГИКА ВРАГА И ЕГО ПУЛЬ
+        if (enemy.alive) {
+            let distP = Math.hypot(player.x - enemy.x, player.y - enemy.y);
+            let distT = Math.hypot(tower.x - enemy.x, tower.y - enemy.y);
+            let target = (player.alive && distP < 350) ? player : tower;
+            let currentDist = (target === player) ? distP : distT;
+
+            if (currentDist > 220) {
+                let angle = Math.atan2(target.y - enemy.y, target.x - enemy.x);
+                enemy.x += Math.cos(angle) * (1.5 + player.lvl * 0.1);
+                enemy.y += Math.sin(angle) * (1.5 + player.lvl * 0.1);
+            }
+
+            // ОГРАНИЧЕНИЕ ЭКРАНА ДЛЯ ВРАГА
+            if (enemy.x - enemy.size < 0) enemy.x = enemy.size;
+            if (enemy.x + enemy.size > canvas.width) enemy.x = canvas.width - enemy.size;
+            if (enemy.y - enemy.size < 0) enemy.y = enemy.size;
+            if (enemy.y + enemy.size > canvas.height) enemy.y = canvas.height - enemy.size;
+
+            // Стрельба врага (БЫСТРАЯ ПЕРЕЗАРЯДКА: 20)
+            if (enemy.attackCooldown <= 0 && currentDist <= 400) {
+                const angle = Math.atan2(target.y - enemy.y, target.x - enemy.x);
+                enemy.bullets.push({ x: enemy.x, y: enemy.y, vx: Math.cos(angle) * 11, vy: Math.sin(angle) * 11, damage: enemy.damage });
+                enemy.attackCooldown = 20; 
+            }
+            if (enemy.attackCooldown > 0) enemy.attackCooldown--;
+        }
+
+        enemy.bullets.forEach((b, i) => {
+            b.x += b.vx; b.y += b.vy;
+            if (player.alive && Math.hypot(b.x - player.x, b.y - player.y) < player.size) {
+                player.hp -= b.damage; enemy.bullets.splice(i, 1);
+                if (player.hp <= 0) respawnPlayer();
+            } else if (tower.alive && Math.hypot(b.x - tower.x, b.y - tower.y) < tower.size) {
+                tower.hp -= 20; enemy.bullets.splice(i, 1);
+                if (tower.hp <= 0) { isGameOver = true; alert("DEFEAT! Enemy destroyed the tower!"); location.reload(); }
+            }
+            if (b.x < -50 || b.x > canvas.width + 50 || b.y < -50 || b.y > canvas.height + 50) enemy.bullets.splice(i, 1);
+        });
+
+        document.getElementById('gold').innerText = player.gold;
+        document.getElementById('hp').innerText = Math.max(0, Math.floor(player.hp));
+        document.getElementById('lvl').innerText = player.lvl;
+        document.getElementById('tower-hp-ui').innerText = Math.max(0, Math.floor(tower.hp));
     }
 
     function draw() {
+        ctx.save();
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (shakeTime > 0) ctx.translate(Math.random()*8-4, Math.random()*8-4);
 
-        // Сетка с параллаксом (условно)
-        ctx.strokeStyle = 'rgba(255,255,255,0.05)';
-        for(let i=0; i<canvas.width; i+=50) {
-            ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
+        ctx.fillStyle = '#444'; walls.forEach(w => ctx.fillRect(w.x, w.y, w.w, w.h));
+        
+        if (tower.alive) {
+            ctx.fillStyle = player.lvl >= 5 ? '#800' : '#333';
+            ctx.fillRect(tower.x-40, tower.y-40, 80, 80);
+            ctx.fillStyle = 'white'; ctx.fillRect(tower.x-50, tower.y-80, (tower.hp/tower.maxHp)*100, 10);
         }
-        for(let i=0; i<canvas.height; i+=50) {
-            ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke();
+
+        if (enemy.alive) {
+            ctx.fillStyle = 'red'; ctx.beginPath(); ctx.arc(enemy.x, enemy.y, enemy.size, 0, Math.PI*2); ctx.fill();
+            // ХП бар врага
+            ctx.fillStyle = 'white'; ctx.fillRect(enemy.x-20, enemy.y-40, (enemy.hp/enemy.maxHp)*40, 4);
         }
 
-        // Рендер частиц
-        state.particles.forEach(p => {
-            ctx.globalAlpha = p.life;
-            ctx.fillStyle = p.color;
-            ctx.beginPath(); ctx.arc(p.x, p.y, 2, 0, Math.PI*2); ctx.fill();
-        });
-        ctx.globalAlpha = 1.0;
+        // Пули игрока
+        player.bullets.forEach(b => { ctx.fillStyle = b.isCrit ? 'red' : 'yellow'; ctx.beginPath(); ctx.arc(b.x, b.y, b.isCrit ? 6 : 4, 0, Math.PI*2); ctx.fill(); });
+        
+        // Пули врага (оранжевые)
+        enemy.bullets.forEach(b => { ctx.fillStyle = 'orange'; ctx.beginPath(); ctx.arc(b.x, b.y, 5, 0, Math.PI*2); ctx.fill(); });
 
-        // Рендер игрока
-        ctx.shadowBlur = 15; ctx.shadowColor = state.player.color;
-        ctx.fillStyle = state.player.color;
-        ctx.beginPath(); ctx.arc(state.player.x, state.player.y, state.player.radius, 0, Math.PI*2); ctx.fill();
-        ctx.shadowBlur = 0;
-        drawHealthBar(state.player.x, state.player.y, state.player.radius, state.player.hp, state.player.maxHp);
-
-        // Рендер врагов
-        state.enemies.forEach(en => {
-            ctx.fillStyle = en.color;
-            ctx.beginPath(); ctx.arc(en.x, en.y, en.radius, 0, Math.PI*2); ctx.fill();
-            drawHealthBar(en.x, en.y, en.radius, en.hp, en.maxHp);
+        damageTexts.forEach((d, i) => {
+            ctx.fillStyle = d.color || "yellow"; ctx.font = `bold ${d.size || 20}px Arial`;
+            ctx.fillText(d.text, d.x, d.y - (30 - d.life)); d.life--; if (d.life <= 0) damageTexts.splice(i, 1);
         });
 
-        // Рендер пуль
-        state.bullets.forEach(b => {
-            ctx.fillStyle = b.color;
-            ctx.beginPath(); ctx.arc(b.x, b.y, b.radius, 0, Math.PI*2); ctx.fill();
-        });
+        if (player.alive) {
+            ctx.fillStyle = '#00aaff'; ctx.beginPath(); ctx.arc(player.x, player.y, player.size, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#00ff00'; ctx.fillRect(player.x-20, player.y-player.size-15, (Math.max(0, player.hp)/100)*40, 6);
+        }
+
+        ctx.restore(); 
+        update(); 
+        requestAnimationFrame(draw);
     }
-
-    function loop(time) {
-        const dt = (time - state.lastTime) / 1000;
-        state.lastTime = time;
-
-        if(dt < 0.1) { // Защита от скачков при переключении вкладок
-            update(dt);
-            draw();
-        }
-        requestAnimationFrame(loop);
-    }
-
-    requestAnimationFrame(loop);
+    
+    draw(); 
 </script>
 </body>
 </html>
