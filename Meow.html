@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Мой Милый Котик</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            font-family: 'Arial Rounded MT Bold', sans-serif;
+            overflow: hidden; user-select: none;
+        }
+
+        /* ЭКРАНЫ С ТВОИМИ ФОНАМИ */
+        .screen {
+            display: none; width: 100%; height: 100%;
+            background-size: cover; background-position: center;
+            position: relative; flex-direction: column; align-items: center;
+        }
+        .active { display: flex; }
+
+        #start-screen { 
+            background-image: url('https://img.freepik.com/premium-vector/realistic-vector-landscape-illustration-green-meadow-with-small-flowers-1x1_1100750-387.jpg?semt=ais_hybrid&w=740&q=80'); 
+        }
+        #main-game { 
+            background-image: url('https://static.vecteezy.com/system/resources/previews/010/943/766/non_2x/living-room-background-with-furniture-free-vector.jpg'); 
+        }
+        #kitchen { 
+            background-image: url('https://img.freepik.com/premium-photo/empty-wood-table-top-blurred-kitchen-backgroundxa_1421-8404.jpg'); 
+        }
+        #football { 
+            background-image: url('https://img.freepik.com/premium-vector/gradient-football-field-background_23-2149000705.jpg'); 
+        }
+        #garden { 
+            background-image: url('https://img.freepik.com/premium-vector/realistic-vector-landscape-illustration-green-meadow-with-small-flowers-1x1_1100750-387.jpg?semt=ais_hybrid&w=740&q=80'); 
+        }
+
+        /* КНОПКА ИГРАТЬ */
+        .play-btn {
+            margin-top: 45vh; padding: 20px 60px; font-size: 35px;
+            background: #FFEB3B; color: #4E342E; border: 4px solid #FBC02D;
+            border-radius: 50px; cursor: pointer; transition: 0.3s;
+            box-shadow: 0 8px 0 #F9A825; font-weight: bold;
+        }
+        .play-btn:active { transform: translateY(6px); box-shadow: 0 2px 0 #F9A825; }
+
+        /* ТВОЙ НОВЫЙ КОТИК */
+        #cat-wrapper {
+            position: absolute; bottom: 80px; width: 220px;
+            transition: all 0.4s ease; z-index: 10;
+            left: 50%; transform: translateX(-50%);
+        }
+        .cat-img { 
+            width: 100%; 
+            pointer-events: none;
+            border-radius: 20px; /* Чтобы картинка выглядела аккуратнее */
+        }
+        
+        .chewing { animation: chewAnim 0.3s infinite; }
+        @keyframes chewAnim {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1, 0.9); }
+        }
+
+        /* ИНТЕРФЕЙС */
+        .ui-panel {
+            position: absolute; bottom: 20px; display: flex; gap: 15px; z-index: 20;
+        }
+        .btn {
+            width: 70px; height: 70px; background: white; border: 4px solid #4CAF50;
+            border-radius: 20px; font-size: 35px; display: flex;
+            align-items: center; justify-content: center; cursor: pointer;
+            box-shadow: 0 5px 0 #388E3C;
+        }
+        .btn:active { transform: translateY(4px); box-shadow: none; }
+
+        .back-btn {
+            position: absolute; top: 20px; left: 20px; padding: 10px 20px;
+            background: #f44336; color: white; border-radius: 10px;
+            cursor: pointer; font-weight: bold; z-index: 100; border: none;
+        }
+
+        /* ФУТБОЛ */
+        #ball { position: absolute; bottom: 30px; font-size: 55px; cursor: pointer; transition: 0.5s; z-index: 25; }
+
+        /* САД */
+        .pots-container { display: flex; gap: 30px; margin-top: 320px; }
+        .pot { text-align: center; width: 90px; cursor: pointer; background: rgba(255,255,255,0.4); border-radius: 15px; padding: 10px; }
+        .plant { font-size: 45px; transition: 0.4s; }
+        
+        .tool { font-size: 60px; position: absolute; cursor: pointer; filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.5)); }
+        #watering-can { right: 30px; bottom: 150px; }
+        #fertilizer-pack { left: 30px; bottom: 150px; }
+
+        .flying-food { position: absolute; font-size: 45px; transition: 0.7s; z-index: 5; pointer-events: none; }
+    </style>
+</head>
+<body>
+
+    <audio id="bg-music" loop>
+        <source src="https://www.chosic.com/wp-content/uploads/2021/04/Funny-and-Happy-Background-Music-Spring-Flowers.mp3" type="audio/mpeg">
+    </audio>
+
+    <div id="start-screen" class="screen active">
+        <button class="play-btn" onclick="startGame()">ИГРАТЬ</button>
+    </div>
+
+    <div id="game-area" style="display:none; width:100%; height:100%;">
+        
+        <button class="back-btn" id="back-btn" style="display:none;" onclick="goHome()">Назад</button>
+
+        <div id="cat-wrapper">
+            <img src="https://i.pinimg.com/474x/6a/a4/32/6aa432defd27fdb7f84c1bf63b3af176.jpg" class="cat-img" id="cat">
+        </div>
+
+        <div id="main-game" class="screen active">
+            <div class="ui-panel">
+                <div class="btn" onclick="openLoc('kitchen')">🍼</div>
+                <div class="btn" onclick="openLoc('football')">⚽️</div>
+                <div class="btn" onclick="openLoc('garden')">🌻</div>
+            </div>
+        </div>
+
+        <div id="kitchen" class="screen">
+            <div class="ui-panel">
+                <div class="btn" onclick="feedCat('🍇')">🍇</div>
+                <div class="btn" onclick="feedCat('🥦')">🥦</div>
+                <div class="btn" onclick="feedCat('🍔')">🍔</div>
+                <div class="btn" onclick="feedCat('🍜')">🍜</div>
+                <div class="btn" onclick="feedCat('🍬')">🍬</div>
+                <div class="btn" onclick="feedCat('🍪')">🍪</div>
+            </div>
+        </div>
+
+        <div id="football" class="screen">
+            <div id="ball" onclick="kickBall()">⚽️</div>
+        </div>
+
+        <div id="garden" class="screen">
+            <div class="pots-container">
+                <div class="pot" onclick="action('water', 0)"><div class="plant" id="p0">🌱</div></div>
+                <div class="pot" onclick="action('water', 1)"><div class="plant" id="p1">🌱</div></div>
+                <div class="pot" onclick="action('water', 2)"><div class="plant" id="p2">🌱</div></div>
+            </div>
+            <div id="watering-can" class="tool" onclick="setTool('water')">🚿</div>
+            <div id="fertilizer-pack" class="tool" onclick="setTool('fert')">📦</div>
+        </div>
+    </div>
+
+    <script>
+        const cat = document.getElementById('cat');
+        const wrapper = document.getElementById('cat-wrapper');
+        let selectedTool = null;
+        let plantData = [
+            { stage: 1, fert: 0, lastWater: 0 },
+            { stage: 1, fert: 0, lastWater: 0 },
+            { stage: 1, fert: 0, lastWater: 0 }
+        ];
+
+        function startGame() {
+            document.getElementById('start-screen').style.display = 'none';
+            document.getElementById('game-area').style.display = 'block';
+            document.getElementById('bg-music').play();
+        }
+
+        function openLoc(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            document.getElementById('back-btn').style.display = 'block';
+        }
+
+        function goHome() {
+            openLoc('main-game');
+            document.getElementById('back-btn').style.display = 'none';
+            wrapper.style.left = '50%';
+        }
+
+        function feedCat(emoji) {
+            const food = document.createElement('div');
+            food.className = 'flying-food';
+            food.innerText = emoji;
+            food.style.left = '50%';
+            food.style.bottom = '100px';
+            document.getElementById('kitchen').appendChild(food);
+
+            setTimeout(() => {
+                food.style.bottom = '300px';
+                food.style.opacity = '0';
+            }, 50);
+
+            setTimeout(() => {
+                cat.classList.add('chewing');
+                food.remove();
+                setTimeout(() => cat.classList.remove('chewing'), 1200);
+            }, 700);
+        }
+
+        function kickBall() {
+            const ball = document.getElementById('ball');
+            const targetX = (Math.random() - 0.5) * 350;
+            ball.style.transform = `translate(${targetX}px, -450px)`;
+            
+            setTimeout(() => { wrapper.style.left = `calc(50% + ${targetX}px)`; }, 100);
+            setTimeout(() => { 
+                ball.style.transform = 'translate(0,0)'; 
+                wrapper.style.left = '50%';
+            }, 1000);
+        }
+
+        function setTool(t) {
+            selectedTool = t;
+            alert(t === 'water' ? "Взяли лейку! Кликните на горшок." : "Взяли удобрение! Кликните на горшок.");
+        }
+
+        function action(type, idx) {
+            const p = plantData[idx];
+            if (selectedTool === 'water') {
+                const now = Date.now();
+                if (now - p.lastWater < 30000) return alert("Подождите 30 сек!");
+                p.lastWater = now;
+                p.stage++;
+            } else if (selectedTool === 'fert') {
+                if (p.fert >= 3) return alert("Растение выросло максимально!");
+                p.fert++;
+            }
+            updateGarden(idx);
+        }
+
+        function updateGarden(i) {
+            const p = plantData[i];
+            const el = document.getElementById('p' + i);
+            el.style.transform = `scale(${1 + p.stage * 0.2})`;
+            if (p.fert === 1) el.innerText = "🌸";
+            if (p.fert === 2) el.innerText = "🌻";
+            if (p.fert === 3) el.innerText = "🍎";
+        }
+    </script>
+</body>
+</html>
